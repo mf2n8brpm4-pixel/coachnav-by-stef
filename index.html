@@ -21,9 +21,9 @@
 
   <main>
     <section class="hero">
-      <div class="eyebrow">PROFESSIONAL COACH ROUTING</div>
+      <div class="eyebrow">UK-WIDE COACH NAVIGATION · DEVELOPMENT</div>
       <h1>Every journey.<br><em>Considered.</em></h1>
-      <p>Plan with your coach dimensions in mind. Built for touring coaches and double-deckers.</p>
+      <p>Designed for UK-wide journeys across England, Scotland, Wales and Northern Ireland. Plan with your coach dimensions in mind.</p>
     </section>
 
     <section class="panel vehicle-panel">
@@ -33,12 +33,12 @@
         <button class="vehicle-option" data-profile="double"><span class="bus-symbol double">▰</span><strong>Double-decker</strong><small>Two decks</small></button>
       </div>
       <div class="dimensions-grid">
-        <label>Height <span>metres</span><input id="height" type="number" inputmode="decimal" min="1" max="6" step="0.01" value="3.80"></label>
-        <label>Length <span>metres</span><input id="length" type="number" inputmode="decimal" min="1" max="25" step="0.01" value="12.00"></label>
+        <label>Height <span>metres</span><input id="height" type="number" inputmode="decimal" min="1" max="6" step="0.01" value="3.90"></label>
+        <label>Length <span>metres</span><input id="length" type="number" inputmode="decimal" min="1" max="25" step="0.01" value="15.00"></label>
         <label>Width <span>metres</span><input id="width" type="number" inputmode="decimal" min="1" max="4" step="0.01" value="2.55"></label>
-        <label>Gross weight <span>tonnes</span><input id="weight" type="number" inputmode="decimal" min="1" max="60" step="0.1" value="18"></label>
+        <label>Gross weight <span>tonnes</span><input id="weight" type="number" inputmode="decimal" min="1" max="60" step="0.1" value="26"></label>
       </div>
-      <div class="hint">Example starting dimensions only. Enter the actual vehicle plate/manufacturer figures before assessing any route.</div>
+      <div class="hint">Starting profile values supplied for this project. Confirm each coach’s actual plated dimensions and weights before use.</div>
       <button class="secondary-button full" id="saveVehicle">Save vehicle profile</button>
     </section>
 
@@ -52,7 +52,7 @@
         <button class="primary-button" id="previewRoute">Show locations on map <span>↗</span></button>
         <button class="locate-button" id="locateMe" title="Use my location" aria-label="Use my location">◎</button>
       </div>
-      <p class="small-note" id="routeMessage" aria-live="polite">Location lookup uses OpenStreetMap's Nominatim service. This prototype does not calculate a drivable route.</p>
+      <p class="small-note" id="routeMessage" aria-live="polite">UK-wide location search is available. This prototype does not calculate a drivable route or verify coach restrictions.</p>
     </section>
 
     <section class="panel map-panel">
@@ -72,7 +72,7 @@
         <label><input type="checkbox"> Roadworks, closures and local diversions</label>
         <label><input type="checkbox"> Suitable coach parking and drop-off points</label>
       </div>
-      <div class="warning"><strong>Safety notice</strong><br>This is an early prototype, not a coach-safe sat-nav. It does not verify bridge heights, weight limits, road access or calculate a safe route. Do not use it to navigate a live journey.</div>
+      <div class="warning"><strong>Safety notice</strong><br>This is an early prototype, not a coach-safe sat-nav. UK-wide routing and authoritative restriction checks are not yet implemented. It does not verify bridge heights, weight limits, road access or calculate a safe route. Do not use it to navigate a live journey.</div>
     </section>
 
     <footer><div class="footer-brand">COACHNAV <span>BY STEF</span></div><p>Independent prototype · Free to develop · iPhone-first</p><button id="installHelp" class="text-button">How to add to iPhone Home Screen</button></footer>

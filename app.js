@@ -1,6 +1,6 @@
 const profiles={
- touring:{height:"3.80",length:"12.00",width:"2.55",weight:"18"},
- double:{height:"4.30",length:"12.00",width:"2.55",weight:"18"}
+ touring:{height:"3.90",length:"15.00",width:"2.55",weight:"26"},
+ double:{height:"4.40",length:"15.00",width:"2.55",weight:"26"}
 };
 let currentProfile="touring";
 const $=id=>document.getElementById(id);
@@ -20,10 +20,10 @@ $('saveVehicle').addEventListener('click',()=>{
  ['height','length','width','weight'].forEach(k=>{p[k]=$(k).value;if(!p[k]||Number(p[k])<=0)valid=false});
  if(!valid){toast('Please enter valid vehicle dimensions.');return}
  profiles[currentProfile]=p;
- try{localStorage.setItem('coachnav_profiles',JSON.stringify(profiles))}catch(e){}
+ try{localStorage.setItem('coachnav_profiles_v2',JSON.stringify(profiles))}catch(e){}
  toast('Vehicle profile saved on this device.');
 });
-try{const saved=JSON.parse(localStorage.getItem('coachnav_profiles')||'null');if(saved){Object.assign(profiles,saved);setProfile('touring')}}catch(e){}
+try{const saved=JSON.parse(localStorage.getItem('coachnav_profiles_v2')||'null');if(saved){Object.assign(profiles,saved);setProfile('touring')}}catch(e){}
 async function geocode(q){
  const url='https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q='+encodeURIComponent(q);
  const res=await fetch(url,{headers:{'Accept':'application/json'}});

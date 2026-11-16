@@ -2,7 +2,8 @@
 
 ## Included
 - Luxury dark executive-coach styling
-- Touring coach and double-decker profiles
+- Touring coach and double-decker profiles with the selected starting values (3.9 m / 4.4 m height, 15 m length, 2.55 m width, 26 tonnes gross weight)
+- UK-wide design target: England, Scotland, Wales and Northern Ireland
 - Editable height, length, width and gross-weight fields
 - Local vehicle-profile saving
 - OpenStreetMap map display
@@ -12,7 +13,7 @@
 - Driver restriction checklist and safety notice
 
 ## Important limitations
-This is an early prototype, not a coach-safe navigation system.
+This is an early prototype, not a coach-safe navigation system. UK-wide location lookup is possible, but UK-wide road routing and authoritative restriction coverage have not been implemented.
 It does **not** calculate road routes, provide turn-by-turn guidance, verify bridge heights, validate weight/axle restrictions, or guarantee access. Do not use it to navigate a live journey.
 
 The map uses OpenStreetMap's public tile service and location search uses the public Nominatim service. These services have usage policies and are not a guaranteed free commercial backend. For a public or commercial launch, use appropriately licensed/hosted services and follow their policies. The app shell may cache locally; map tiles and geocoding require internet access.
