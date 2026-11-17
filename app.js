@@ -31,21 +31,106 @@ async function geocode(q){
  const data=await res.json();if(!data.length)throw new Error('Could not find: '+q);
  return {lat:Number(data[0].lat),lon:Number(data[0].lon),name:data[0].display_name};
 }
-$('previewRoute').addEventListener('click',async()=>{
- const from=$('origin').value.trim(),to=$('destination').value.trim();
- if(!from||!to){toast('Enter both a starting point and destination.');return}
- $('previewRoute').disabled=true;$('previewRoute').textContent='Finding locations…';
- $('routeMessage').textContent='Looking up the two locations. This may take a few seconds.';
- try{
-  const a=await geocode(from);await new Promise(r=>setTimeout(r,1100));const b=await geocode(to);
-  markers.forEach(m=>map.removeLayer(m));markers=[];
-  markers.push(L.marker([a.lat,a.lon]).addTo(map).bindPopup('START · '+a.name));
-  markers.push(L.marker([b.lat,b.lon]).addTo(map).bindPopup('DESTINATION · '+b.name));
-  const bounds=L.latLngBounds([[a.lat,a.lon],[b.lat,b.lon]]);map.fitBounds(bounds,{padding:[35,35],maxZoom:12});
-  $('routeMessage').textContent='Both locations found and shown on the map. No road route has been calculated; this is not navigation.';
-  toast('Locations displayed. No safe route has been calculated.');
- }catch(e){$('routeMessage').textContent=e.message+' Please check the spelling and try again.';toast(e.message)}
- finally{$('previewRoute').disabled=false;$('previewRoute').innerHTML='Show locations on map <span>↗</span>'}
+$('previewRoute').addEventListener('click', async e => {
+
+  e.preventDefault();
+
+  const from = $('origin').value.trim();
+
+  const to = $('destination').value.trim();
+
+  if (!from || !to) {
+
+    toast('Enter both a starting point and destination.');
+
+    return;
+
+  }
+
+  $('previewRoute').disabled = true;
+
+  $('previewRoute').textContent = 'Calculating route...';
+
+  $('routeMessage').textContent = 'Finding road route...';
+
+  try {
+
+    const a = await geocode(from);
+
+    const b = await geocode(to);
+
+    const url =
+
+      `https://router.project-osrm.org/route/v1/driving/${a.lon},${a.lat};${b.lon},${b.lat}?overview=full&geometries=geojson`;
+
+    const response = await fetch(url);
+
+    const data = await response.json();
+
+    if (!data.routes || !data.routes.length) {
+
+      throw new Error('No road route found.');
+
+    }
+
+    markers.forEach(m => map.removeLayer(m));
+
+    markers = [];
+
+    const route = data.routes[0].geometry.coordinates
+
+      .map(p => [p[1], p[0]]);
+
+    const roadLine = L.polyline(route, {
+
+      color: '#1677ff',
+
+      weight: 6
+
+    }).addTo(map);
+
+    markers.push(roadLine);
+
+    markers.push(
+
+      L.marker([a.lat, a.lon]).addTo(map)
+
+        .bindPopup('START: ' + a.name)
+
+    );
+
+    markers.push(
+
+      L.marker([b.lat, b.lon]).addTo(map)
+
+        .bindPopup('DESTINATION: ' + b.name)
+
+    );
+
+    map.fitBounds(roadLine.getBounds(), {
+
+      padding: [35, 35]
+
+    });
+
+    $('routeMessage').textContent =
+
+      'Road route preview calculated. Not validated for coach restrictions.';
+
+  } catch (e) {
+
+    $('routeMessage').textContent = e.message;
+
+    toast(e.message);
+
+  } finally {
+
+    $('previewRoute').disabled = false;
+
+    $('previewRoute').textContent = 'Show route on map';
+
+  }
+
 });
 $('locateMe').addEventListener('click',()=>{
  if(!navigator.geolocation){toast('Location is not supported by this browser.');return}
