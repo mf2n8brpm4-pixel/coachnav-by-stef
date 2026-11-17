@@ -137,7 +137,7 @@ $('previewRoute').addEventListener('click', async e => {
 
       'vehicle[grossWeight]': String(Math.round(Number(p.weight) * 1000)),
 
-      apiKey: Fav5zkRAQl0p63_T0GEfk79RfI5P9Wag6fmeI-fnHsE
+      apiKey: 'Fav5zkRAQl0p63_T0GEfk79RfI5P9Wag6fmeI-fnHsE'
 
     });
 
