@@ -32,7 +32,7 @@ let currentProfile = "touring";
 
 // Paste your EXISTING HERE API key between these quotation marks.
 
-const HERE_API_KEY = "PASTE YOUR EXISTING HERE KEY HERE";
+const HERE_API_KEY = "Fav5zkRAQl0p63_T0GEfk79RfI5P9Wag6fmeI-fnHsE";
 
 const $ = id => document.getElementById(id);
 
