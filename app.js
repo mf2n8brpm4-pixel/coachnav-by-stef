@@ -30,8 +30,208 @@ async function geocode(q){
  if(!res.ok)throw new Error('Location service unavailable');
  const data=await res.json();if(!data.length)throw new Error('Could not find: '+q);
  return {lat:Number(data[0].lat),lon:Number(data[0].lon),name:data[0].display_name};
+}function decodeHerePolyline(encoded) {
+
+  let index = 0, lat = 0, lon = 0;
+
+  const points = [];
+
+  function readValue() {
+
+    let result = 0, shift = 0, value;
+
+    do {
+
+      value = encoded.charCodeAt(index++) - 63;
+
+      result |= (value & 0x1f) << shift;
+
+      shift += 5;
+
+    } while (value >= 0x20);
+
+    return (result & 1) ? ~(result >> 1) : (result >> 1);
+
+  }
+
+  const header = encoded.charCodeAt(index++) - 63;
+
+  const precision = Math.pow(10, -(header & 15));
+
+  const thirdDim = (header >> 4) & 7;
+
+  if (thirdDim) {
+
+    const thirdPrecision = Math.pow(
+
+      10,
+
+      -((encoded.charCodeAt(index++) - 63) & 15)
+
+    );
+
+  }
+
+  while (index < encoded.length) {
+
+    lat += readValue();
+
+    lon += readValue();
+
+    points.push([lat * precision, lon * precision]);
+
+    if (thirdDim) readValue();
+
+  }
+
+  return points;
+
 }
 $('previewRoute').addEventListener('click', async e => {
+
+  e.preventDefault();
+
+  const from = $('origin').value.trim();
+
+  const to = $('destination').value.trim();
+
+  if (!from || !to) {
+
+    toast('Enter both a starting point and destination.');
+
+    return;
+
+  }
+
+  $('previewRoute').disabled = true;
+
+  $('previewRoute').textContent = 'Calculating route...';
+
+  $('routeMessage').textContent = 'Finding coach route...';
+
+  try {
+
+    const a = await geocode(from);
+
+    const b = await geocode(to);
+
+    const p = profiles[currentProfile];
+
+    const params = new URLSearchParams({
+
+      transportMode: 'truck',
+
+      origin: `${a.lat},${a.lon}`,
+
+      destination: `${b.lat},${b.lon}`,
+
+      routingMode: 'fast',
+
+      return: 'polyline,summary',
+
+      'vehicle[height]': String(Math.round(Number(p.height) * 100)),
+
+      'vehicle[length]': String(Math.round(Number(p.length) * 100)),
+
+      'vehicle[width]': String(Math.round(Number(p.width) * 100)),
+
+      'vehicle[grossWeight]': String(Math.round(Number(p.weight) * 1000)),
+
+      apiKey: Fav5zkRAQl0p63_T0GEfk79RfI5P9Wag6fmeI-fnHsE
+
+    });
+
+    const response = await fetch(
+
+      'https://router.hereapi.com/v8/routes?' + params
+
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+
+      throw new Error(data.cause || data.title || 'HERE routing failed.');
+
+    }
+
+    if (!data.routes || !data.routes.length) {
+
+      throw new Error('No route found for this vehicle.');
+
+    }
+
+    const sections = data.routes[0].sections;
+
+    const route = [];
+
+    sections.forEach(section => {
+
+      if (section.polyline) {
+
+        route.push(...decodeHerePolyline(section.polyline));
+
+      }
+
+    });
+
+    if (!route.length) {
+
+      throw new Error('HERE returned no route line.');
+
+    }
+
+    markers.forEach(m => map.removeLayer(m));
+
+    markers = [];
+
+    const roadLine = L.polyline(route, {
+
+      color: '#1677ff',
+
+      weight: 6
+
+    }).addTo(map);
+
+    markers.push(roadLine);
+
+    markers.push(
+
+      L.marker([a.lat, a.lon]).addTo(map)
+
+        .bindPopup('START: ' + a.name)
+
+    );
+
+    markers.push(
+
+      L.marker([b.lat, b.lon]).addTo(map)
+
+        .bindPopup('DESTINATION: ' + b.name)
+
+    );
+
+    map.fitBounds(roadLine.getBounds(), { padding: [35, 35] });
+
+    $('routeMessage').textContent =
+
+      'HERE truck route calculated for your selected vehicle profile. Check all restrictions before travelling.';
+
+  } catch (e) {
+
+    $('routeMessage').textContent = e.message;
+
+    toast(e.message);
+
+  } finally {
+
+    $('previewRoute').disabled = false;
+
+    $('previewRoute').textContent = 'Show route on map';
+
+  }
+
+});
 
   e.preventDefault();
 
