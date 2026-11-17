@@ -1,5 +1,27 @@
 
 
+// ==========================================
+
+// COACHNAV BY STEF
+
+// Complete application script
+
+// ==========================================
+
+// IMPORTANT:
+
+// Put your existing HERE API key between the quotes.
+
+// Do not share the key publicly.
+
+const HERE_API_KEY = "Fav5zkRAQl0p63_T0GEfk79RfI5P9Wag6fmeI-fnHsE";
+
+// ==========================================
+
+// VEHICLE PROFILES
+
+// ==========================================
+
 const profiles = {
 
   touring: {
@@ -30,11 +52,17 @@ const profiles = {
 
 let currentProfile = "touring";
 
-// Your HERE API key
+let currentLocation = null;
 
-const HERE_API_KEY = "Fav5zkRAQl0p63_T0GEfk79RfI5P9Wag6fmeI-fnHsE";
+let markers = [];
 
 const $ = id => document.getElementById(id);
+
+// ==========================================
+
+// MAP SETUP
+
+// ==========================================
 
 const map = L.map("map", {
 
@@ -64,9 +92,11 @@ L.control.zoom({
 
 }).addTo(map);
 
-let markers = [];
+// ==========================================
 
-let currentLocation = null;
+// NOTIFICATIONS
+
+// ==========================================
 
 function toast(message) {
 
@@ -86,6 +116,12 @@ function toast(message) {
 
 }
 
+// ==========================================
+
+// MAP MARKERS AND ROUTE
+
+// ==========================================
+
 function clearMapMarkers() {
 
   markers.forEach(marker => map.removeLayer(marker));
@@ -93,6 +129,12 @@ function clearMapMarkers() {
   markers = [];
 
 }
+
+// ==========================================
+
+// VEHICLE PROFILE SELECTION
+
+// ==========================================
 
 function setProfile(name) {
 
@@ -118,7 +160,11 @@ function setProfile(name) {
 
     const field = $(key);
 
-    if (field) field.value = profile[key];
+    if (field) {
+
+      field.value = profile[key];
+
+    }
 
   });
 
@@ -134,6 +180,12 @@ document.querySelectorAll(".vehicle-option").forEach(button => {
 
 });
 
+// ==========================================
+
+// SAVE VEHICLE PROFILE
+
+// ==========================================
+
 if ($("saveVehicle")) {
 
   $("saveVehicle").addEventListener("click", () => {
@@ -144,7 +196,9 @@ if ($("saveVehicle")) {
 
     ["height", "length", "width", "weight"].forEach(key => {
 
-      profile[key] = $(key).value;
+      const field = $(key);
+
+      profile[key] = field ? field.value : "";
 
       if (!profile[key] || Number(profile[key]) <= 0) {
 
@@ -186,6 +240,12 @@ if ($("saveVehicle")) {
 
 }
 
+// ==========================================
+
+// LOAD SAVED VEHICLE PROFILES
+
+// ==========================================
+
 try {
 
   const saved = JSON.parse(
@@ -208,7 +268,11 @@ try {
 
 setProfile("touring");
 
-// Find a location using OpenStreetMap Nominatim.
+// ==========================================
+
+// LOCATION SEARCH
+
+// ==========================================
 
 async function geocode(query) {
 
@@ -254,7 +318,11 @@ async function geocode(query) {
 
 }
 
-// Decode HERE Flexible Polyline.
+// ==========================================
+
+// HERE FLEXIBLE POLYLINE DECODER
+
+// ==========================================
 
 function decodeHerePolyline(encoded) {
 
@@ -286,9 +354,11 @@ function decodeHerePolyline(encoded) {
 
       }
 
-      result |= (value & 0x1f) << shift;
+      // Use arithmetic rather than 32-bit bitwise shifts.
 
-      if ((value & 0x20) === 0) {
+      result += (value % 32) * Math.pow(2, shift);
+
+      if ((value & 32) === 0) {
 
         return result;
 
@@ -296,7 +366,7 @@ function decodeHerePolyline(encoded) {
 
       shift += 5;
 
-      if (shift > 30) {
+      if (shift > 50) {
 
         throw new Error("Invalid HERE route geometry.");
 
@@ -312,13 +382,19 @@ function decodeHerePolyline(encoded) {
 
     const value = decodeUnsignedVarint();
 
-    return (value & 1)
+    const magnitude = Math.floor(value / 2);
 
-      ? ~(value >> 1)
+    return value % 2
 
-      : (value >> 1);
+      ? -magnitude - 1
+
+      : magnitude;
 
   }
+
+  // Flexible Polyline header:
+
+  // version, precision, third dimension, third dimension precision.
 
   const version = decodeUnsignedVarint();
 
@@ -332,17 +408,25 @@ function decodeHerePolyline(encoded) {
 
   const thirdDim = decodeUnsignedVarint();
 
-  const thirdDimPrecision = decodeUnsignedVarint();
+  // Read the third dimension precision from the header.
+
+  decodeUnsignedVarint();
 
   const factor = Math.pow(10, precision);
-
-  const thirdDimFactor = Math.pow(10, thirdDimPrecision);
 
   while (index < encoded.length) {
 
     lastLat += decodeSignedVarint();
 
     lastLon += decodeSignedVarint();
+
+    // Consume optional altitude or other third-dimension data.
+
+    if (thirdDim !== 0) {
+
+      decodeSignedVarint();
+
+    }
 
     points.push([
 
@@ -352,11 +436,11 @@ function decodeHerePolyline(encoded) {
 
     ]);
 
-    if (thirdDim !== 0) {
+  }
 
-      decodeSignedVarint();
+  if (points.length < 2) {
 
-    }
+    throw new Error("HERE returned too few route points.");
 
   }
 
@@ -364,7 +448,11 @@ function decodeHerePolyline(encoded) {
 
 }
 
-// Calculate and display a vehicle-aware route.
+// ==========================================
+
+// CALCULATE COACH ROUTE USING HERE
+
+// ==========================================
 
 if ($("previewRoute")) {
 
@@ -384,15 +472,37 @@ if ($("previewRoute")) {
 
     }
 
+    if (
+
+      !HERE_API_KEY ||
+
+      HERE_API_KEY === "PASTE_YOUR_EXISTING_HERE_API_KEY_HERE"
+
+    ) {
+
+      toast("Add your HERE API key in app.js first.");
+
+      return;
+
+    }
+
     const button = $("previewRoute");
 
     button.disabled = true;
 
     button.textContent = "Calculating route...";
 
-    $("routeMessage").textContent = "Finding your vehicle route...";
+    if ($("routeMessage")) {
+
+      $("routeMessage").textContent =
+
+        "Finding your coach vehicle route...";
+
+    }
 
     try {
+
+      // Find starting point.
 
       const a =
 
@@ -402,9 +512,13 @@ if ($("previewRoute")) {
 
           : await geocode(from);
 
+      // Find destination.
+
       const b = await geocode(to);
 
       const profile = profiles[currentProfile];
+
+      // Build HERE Routing API request.
 
       const params = new URLSearchParams();
 
@@ -419,6 +533,8 @@ if ($("previewRoute")) {
       params.set("return", "polyline,summary");
 
       params.set("spans", "notices");
+
+      // HERE dimensions use centimetres.
 
       params.set(
 
@@ -444,6 +560,8 @@ if ($("previewRoute")) {
 
       );
 
+      // HERE gross weight uses kilograms.
+
       params.set(
 
         "vehicle[grossWeight]",
@@ -456,7 +574,9 @@ if ($("previewRoute")) {
 
       const response = await fetch(
 
-        "https://router.hereapi.com/v8/routes?" + params.toString()
+        "https://router.hereapi.com/v8/routes?" +
+
+        params.toString()
 
       );
 
@@ -464,7 +584,7 @@ if ($("previewRoute")) {
 
       if (!response.ok) {
 
-        throw new Error(
+        const reason =
 
           data.cause ||
 
@@ -472,15 +592,17 @@ if ($("previewRoute")) {
 
           data.message ||
 
-          "HERE routing failed. Check your API access."
+          data.status ||
 
-        );
+          "HERE routing request failed.";
+
+        throw new Error(String(reason));
 
       }
 
       if (!data.routes || !data.routes.length) {
 
-        throw new Error("No route found for this vehicle.");
+        throw new Error("HERE could not find a route.");
 
       }
 
@@ -492,23 +614,25 @@ if ($("previewRoute")) {
 
         if (section.polyline) {
 
-          route.push(
+          const decoded = decodeHerePolyline(section.polyline);
 
-            ...decodeHerePolyline(section.polyline)
-
-          );
+          route.push(...decoded);
 
         }
 
       });
 
-      if (!route.length) {
+      if (route.length < 2) {
 
-        throw new Error("HERE returned no route line.");
+        throw new Error("HERE returned no usable road route.");
 
       }
 
+      // Remove previous markers and route.
+
       clearMapMarkers();
+
+      // Draw the calculated road route.
 
       const roadLine = L.polyline(route, {
 
@@ -522,6 +646,8 @@ if ($("previewRoute")) {
 
       markers.push(roadLine);
 
+      // Add starting marker.
+
       markers.push(
 
         L.marker([a.lat, a.lon])
@@ -531,6 +657,8 @@ if ($("previewRoute")) {
           .bindPopup("START: " + a.name)
 
       );
+
+      // Add destination marker.
 
       markers.push(
 
@@ -542,11 +670,15 @@ if ($("previewRoute")) {
 
       );
 
+      // Zoom map to route.
+
       map.fitBounds(roadLine.getBounds(), {
 
         padding: [35, 35]
 
       });
+
+      // Check for critical notices.
 
       const notices = sections.flatMap(section =>
 
@@ -560,17 +692,21 @@ if ($("previewRoute")) {
 
       );
 
-      if (criticalNotices.length) {
+      if ($("routeMessage")) {
 
-        $("routeMessage").textContent =
+        if (criticalNotices.length) {
 
-          "Route calculated, but HERE reports a critical vehicle restriction. Do not rely on this route until checked.";
+          $("routeMessage").textContent =
 
-      } else {
+            "Route calculated, but HERE reports a critical vehicle restriction. Check before travelling.";
 
-        $("routeMessage").textContent =
+        } else {
 
-          "Vehicle route calculated. Check road restrictions and signs before travelling.";
+          $("routeMessage").textContent =
+
+            "Vehicle route calculated. Check road restrictions and signs before travelling.";
+
+        }
 
       }
 
@@ -578,9 +714,13 @@ if ($("previewRoute")) {
 
     } catch (error) {
 
-      console.error(error);
+      console.error("CoachNav route error:", error);
 
-      $("routeMessage").textContent = error.message;
+      if ($("routeMessage")) {
+
+        $("routeMessage").textContent = error.message;
+
+      }
 
       toast(error.message);
 
@@ -596,7 +736,11 @@ if ($("previewRoute")) {
 
 }
 
-// Find and display your current location.
+// ==========================================
+
+// FIND CURRENT LOCATION
+
+// ==========================================
 
 if ($("locateMe")) {
 
@@ -610,9 +754,13 @@ if ($("locateMe")) {
 
     }
 
-    $("routeMessage").textContent =
+    if ($("routeMessage")) {
 
-      "Requesting your location...";
+      $("routeMessage").textContent =
+
+        "Requesting your location...";
+
+    }
 
     navigator.geolocation.getCurrentPosition(
 
@@ -638,6 +786,8 @@ if ($("locateMe")) {
 
         map.setView(coordinates, 14);
 
+        clearMapMarkers();
+
         const marker = L.marker(coordinates)
 
           .addTo(map)
@@ -650,9 +800,13 @@ if ($("locateMe")) {
 
         $("origin").value = "My current location";
 
-        $("routeMessage").textContent =
+        if ($("routeMessage")) {
 
-          "Your location is shown on the map.";
+          $("routeMessage").textContent =
+
+            "Your location is shown on the map.";
+
+        }
 
       },
 
@@ -680,7 +834,11 @@ if ($("locateMe")) {
 
 }
 
-// Installation help.
+// ==========================================
+
+// INSTALLATION HELP
+
+// ==========================================
 
 if ($("installHelp")) {
 
@@ -696,7 +854,11 @@ if ($("installHelp")) {
 
 }
 
-// App installation.
+// ==========================================
+
+// APP INSTALLATION
+
+// ==========================================
 
 let deferredPrompt;
 
@@ -732,7 +894,11 @@ if ($("installBtn")) {
 
 }
 
-// Register service worker.
+// ==========================================
+
+// SERVICE WORKER
+
+// ==========================================
 
 if (
 
@@ -750,7 +916,13 @@ if (
 
       .catch(error => {
 
-        console.warn("Service worker registration failed.", error);
+        console.warn(
+
+          "Service worker registration failed.",
+
+          error
+
+        );
 
       });
 
