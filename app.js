@@ -1,44 +1,250 @@
-const profiles={
- touring:{height:"3.90",length:"15.00",width:"2.55",weight:"26"},
- double:{height:"4.40",length:"15.00",width:"2.55",weight:"26"}
-};
-let currentProfile="touring";
-const $=id=>document.getElementById(id);
-const map=L.map('map',{zoomControl:false}).setView([51.5074,-0.1278],6);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'}).addTo(map);
-L.control.zoom({position:'bottomright'}).addTo(map);
-let markers=[];
-function toast(message){const el=$('toast');el.textContent=message;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),3200)}
-function setProfile(name){
- currentProfile=name;
- document.querySelectorAll('.vehicle-option').forEach(b=>b.classList.toggle('selected',b.dataset.profile===name));
- const p=profiles[name];['height','length','width','weight'].forEach(k=>$(k).value=p[k]);
-}
-document.querySelectorAll('.vehicle-option').forEach(b=>b.addEventListener('click',()=>setProfile(b.dataset.profile)));
-$('saveVehicle').addEventListener('click',()=>{
- const p={};let valid=true;
- ['height','length','width','weight'].forEach(k=>{p[k]=$(k).value;if(!p[k]||Number(p[k])<=0)valid=false});
- if(!valid){toast('Please enter valid vehicle dimensions.');return}
- profiles[currentProfile]=p;
- try{localStorage.setItem('coachnav_profiles_v2',JSON.stringify(profiles))}catch(e){}
- toast('Vehicle profile saved on this device.');
-});
-try{const saved=JSON.parse(localStorage.getItem('coachnav_profiles_v2')||'null');if(saved){Object.assign(profiles,saved);setProfile('touring')}}catch(e){}
-async function geocode(q){
- const url='https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q='+encodeURIComponent(q);
- const res=await fetch(url,{headers:{'Accept':'application/json'}});
- if(!res.ok)throw new Error('Location service unavailable');
- const data=await res.json();if(!data.length)throw new Error('Could not find: '+q);
- return {lat:Number(data[0].lat),lon:Number(data[0].lon),name:data[0].display_name};
-}function decodeHerePolyline(encoded) {
 
-  let index = 0, lat = 0, lon = 0;
+
+const profiles = {
+
+  touring: {
+
+    height: "3.90",
+
+    length: "15.00",
+
+    width: "2.55",
+
+    weight: "26"
+
+  },
+
+  double: {
+
+    height: "4.40",
+
+    length: "15.00",
+
+    width: "2.55",
+
+    weight: "26"
+
+  }
+
+};
+
+let currentProfile = "touring";
+
+// Paste your EXISTING HERE API key between these quotation marks.
+
+const HERE_API_KEY = "PASTE YOUR EXISTING HERE KEY HERE";
+
+const $ = id => document.getElementById(id);
+
+const map = L.map("map", {
+
+  zoomControl: false
+
+}).setView([51.5074, -0.1278], 6);
+
+L.tileLayer(
+
+  "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+
+  {
+
+    maxZoom: 19,
+
+    attribution:
+
+      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+
+  }
+
+).addTo(map);
+
+L.control.zoom({
+
+  position: "bottomright"
+
+}).addTo(map);
+
+let markers = [];
+
+function toast(message) {
+
+  const el = $("toast");
+
+  if (!el) return;
+
+  el.textContent = message;
+
+  el.classList.add("show");
+
+  setTimeout(() => {
+
+    el.classList.remove("show");
+
+  }, 3200);
+
+}
+
+function setProfile(name) {
+
+  currentProfile = name;
+
+  document.querySelectorAll(".vehicle-option").forEach(button => {
+
+    button.classList.toggle(
+
+      "selected",
+
+      button.dataset.profile === name
+
+    );
+
+  });
+
+  const profile = profiles[name];
+
+  ["height", "length", "width", "weight"].forEach(key => {
+
+    $(key).value = profile[key];
+
+  });
+
+}
+
+document.querySelectorAll(".vehicle-option").forEach(button => {
+
+  button.addEventListener("click", () => {
+
+    setProfile(button.dataset.profile);
+
+  });
+
+});
+
+$("saveVehicle").addEventListener("click", () => {
+
+  const profile = {};
+
+  let valid = true;
+
+  ["height", "length", "width", "weight"].forEach(key => {
+
+    profile[key] = $(key).value;
+
+    if (!profile[key] || Number(profile[key]) <= 0) {
+
+      valid = false;
+
+    }
+
+  });
+
+  if (!valid) {
+
+    toast("Please enter valid vehicle dimensions.");
+
+    return;
+
+  }
+
+  profiles[currentProfile] = profile;
+
+  try {
+
+    localStorage.setItem(
+
+      "coachnav_profiles_v2",
+
+      JSON.stringify(profiles)
+
+    );
+
+  } catch (error) {}
+
+  toast("Vehicle profile saved on this device.");
+
+});
+
+try {
+
+  const saved = JSON.parse(
+
+    localStorage.getItem("coachnav_profiles_v2") || "null"
+
+  );
+
+  if (saved) {
+
+    Object.assign(profiles, saved);
+
+  }
+
+} catch (error) {}
+
+setProfile("touring");
+
+async function geocode(query) {
+
+  const url =
+
+    "https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q=" +
+
+    encodeURIComponent(query);
+
+  const response = await fetch(url, {
+
+    headers: {
+
+      Accept: "application/json"
+
+    }
+
+  });
+
+  if (!response.ok) {
+
+    throw new Error("Location service unavailable.");
+
+  }
+
+  const data = await response.json();
+
+  if (!data.length) {
+
+    throw new Error("Could not find: " + query);
+
+  }
+
+  return {
+
+    lat: Number(data[0].lat),
+
+    lon: Number(data[0].lon),
+
+    name: data[0].display_name
+
+  };
+
+}
+
+// Decode HERE Flexible Polyline geometry.
+
+function decodeHerePolyline(encoded) {
+
+  let index = 0;
+
+  let lat = 0;
+
+  let lon = 0;
 
   const points = [];
 
   function readValue() {
 
-    let result = 0, shift = 0, value;
+    let result = 0;
+
+    let shift = 0;
+
+    let value;
 
     do {
 
@@ -50,7 +256,11 @@ async function geocode(q){
 
     } while (value >= 0x20);
 
-    return (result & 1) ? ~(result >> 1) : (result >> 1);
+    return (result & 1)
+
+      ? ~(result >> 1)
+
+      : (result >> 1);
 
   }
 
@@ -62,13 +272,7 @@ async function geocode(q){
 
   if (thirdDim) {
 
-    const thirdPrecision = Math.pow(
-
-      10,
-
-      -((encoded.charCodeAt(index++) - 63) & 15)
-
-    );
+    encoded.charCodeAt(index++) - 63;
 
   }
 
@@ -78,36 +282,63 @@ async function geocode(q){
 
     lon += readValue();
 
-    points.push([lat * precision, lon * precision]);
+    points.push([
 
-    if (thirdDim) readValue();
+      lat * precision,
+
+      lon * precision
+
+    ]);
+
+    if (thirdDim) {
+
+      readValue();
+
+    }
 
   }
 
   return points;
 
 }
-$('previewRoute').addEventListener('click', async e => {
 
-  e.preventDefault();
+$("previewRoute").addEventListener("click", async event => {
 
-  const from = $('origin').value.trim();
+  event.preventDefault();
 
-  const to = $('destination').value.trim();
+  const from = $("origin").value.trim();
+
+  const to = $("destination").value.trim();
 
   if (!from || !to) {
 
-    toast('Enter both a starting point and destination.');
+    toast("Enter both a starting point and destination.");
 
     return;
 
   }
 
-  $('previewRoute').disabled = true;
+  if (
 
-  $('previewRoute').textContent = 'Calculating route...';
+    !HERE_API_KEY ||
 
-  $('routeMessage').textContent = 'Finding coach route...';
+    HERE_API_KEY === "PASTE YOUR EXISTING HERE KEY HERE"
+
+  ) {
+
+    toast("Add your existing HERE API key in app.js.");
+
+    return;
+
+  }
+
+  const button = $("previewRoute");
+
+  button.disabled = true;
+
+  button.textContent = "Calculating route...";
+
+  $("routeMessage").textContent = "Finding coach route...";
 
   try {
 
@@ -115,35 +346,51 @@ $('previewRoute').addEventListener('click', async e => {
 
     const b = await geocode(to);
 
-    const p = profiles[currentProfile];
+    const profile = profiles[currentProfile];
 
     const params = new URLSearchParams({
 
-      transportMode: 'truck',
+      transportMode: "truck",
 
       origin: `${a.lat},${a.lon}`,
 
       destination: `${b.lat},${b.lon}`,
 
-      routingMode: 'fast',
+      routingMode: "fast",
 
-      return: 'polyline,summary',
+      return: "polyline,summary",
 
-      'vehicle[height]': String(Math.round(Number(p.height) * 100)),
+      "vehicle[height]": String(
 
-      'vehicle[length]': String(Math.round(Number(p.length) * 100)),
+        Math.round(Number(profile.height) * 100)
 
-      'vehicle[width]': String(Math.round(Number(p.width) * 100)),
+      ),
 
-      'vehicle[grossWeight]': String(Math.round(Number(p.weight) * 1000)),
+      "vehicle[length]": String(
 
-      apiKey: 'Fav5zkRAQl0p63_T0GEfk79RfI5P9Wag6fmeI-fnHsE'
+        Math.round(Number(profile.length) * 100)
+
+      ),
+
+      "vehicle[width]": String(
+
+        Math.round(Number(profile.width) * 100)
+
+      ),
+
+      "vehicle[grossWeight]": String(
+
+        Math.round(Number(profile.weight) * 1000)
+
+      ),
+
+      apiKey: HERE_API_KEY
 
     });
 
     const response = await fetch(
 
-      'https://router.hereapi.com/v8/routes?' + params
+      "https://router.hereapi.com/v8/routes?" + params
 
     );
 
@@ -151,13 +398,21 @@ $('previewRoute').addEventListener('click', async e => {
 
     if (!response.ok) {
 
-      throw new Error(data.cause || data.title || 'HERE routing failed.');
+      throw new Error(
+
+        data.cause ||
+
+        data.title ||
+
+        "HERE routing failed."
+
+      );
 
     }
 
     if (!data.routes || !data.routes.length) {
 
-      throw new Error('No route found for this vehicle.');
+      throw new Error("No route found for this vehicle.");
 
     }
 
@@ -169,7 +424,11 @@ $('previewRoute').addEventListener('click', async e => {
 
       if (section.polyline) {
 
-        route.push(...decodeHerePolyline(section.polyline));
+        route.push(
+
+          ...decodeHerePolyline(section.polyline)
+
+        );
 
       }
 
@@ -177,19 +436,25 @@ $('previewRoute').addEventListener('click', async e => {
 
     if (!route.length) {
 
-      throw new Error('HERE returned no route line.');
+      throw new Error("HERE returned no route line.");
 
     }
 
-    markers.forEach(m => map.removeLayer(m));
+    markers.forEach(marker => {
+
+      map.removeLayer(marker);
+
+    });
 
     markers = [];
 
     const roadLine = L.polyline(route, {
 
-      color: '#1677ff',
+      color: "#1677ff",
 
-      weight: 6
+      weight: 6,
+
+      opacity: 0.9
 
     }).addTo(map);
 
@@ -197,113 +462,21 @@ $('previewRoute').addEventListener('click', async e => {
 
     markers.push(
 
-      L.marker([a.lat, a.lon]).addTo(map)
+      L.marker([a.lat, a.lon])
 
-        .bindPopup('START: ' + a.name)
+        .addTo(map)
 
-    );
-
-    markers.push(
-
-      L.marker([b.lat, b.lon]).addTo(map)
-
-        .bindPopup('DESTINATION: ' + b.name)
-
-    );
-
-    map.fitBounds(roadLine.getBounds(), { padding: [35, 35] });
-
-    $('routeMessage').textContent =
-
-      'HERE truck route calculated for your selected vehicle profile. Check all restrictions before travelling.';
-
-  } catch (e) {
-
-    $('routeMessage').textContent = e.message;
-
-    toast(e.message);
-
-  } finally {
-
-    $('previewRoute').disabled = false;
-
-    $('previewRoute').textContent = 'Show route on map';
-
-  }
-
-});
-
-  e.preventDefault();
-
-  const from = $('origin').value.trim();
-
-  const to = $('destination').value.trim();
-
-  if (!from || !to) {
-
-    toast('Enter both a starting point and destination.');
-
-    return;
-
-  }
-
-  $('previewRoute').disabled = true;
-
-  $('previewRoute').textContent = 'Calculating route...';
-
-  $('routeMessage').textContent = 'Finding road route...';
-
-  try {
-
-    const a = await geocode(from);
-
-    const b = await geocode(to);
-
-    const url =
-
-      `https://router.project-osrm.org/route/v1/driving/${a.lon},${a.lat};${b.lon},${b.lat}?overview=full&geometries=geojson`;
-
-    const response = await fetch(url);
-
-    const data = await response.json();
-
-    if (!data.routes || !data.routes.length) {
-
-      throw new Error('No road route found.');
-
-    }
-
-    markers.forEach(m => map.removeLayer(m));
-
-    markers = [];
-
-    const route = data.routes[0].geometry.coordinates
-
-      .map(p => [p[1], p[0]]);
-
-    const roadLine = L.polyline(route, {
-
-      color: '#1677ff',
-
-      weight: 6
-
-    }).addTo(map);
-
-    markers.push(roadLine);
-
-    markers.push(
-
-      L.marker([a.lat, a.lon]).addTo(map)
-
-        .bindPopup('START: ' + a.name)
+        .bindPopup("START: " + a.name)
 
     );
 
     markers.push(
 
-      L.marker([b.lat, b.lon]).addTo(map)
+      L.marker([b.lat, b.lon])
 
-        .bindPopup('DESTINATION: ' + b.name)
+        .addTo(map)
+
+        .bindPopup("DESTINATION: " + b.name)
 
     );
 
@@ -313,36 +486,168 @@ $('previewRoute').addEventListener('click', async e => {
 
     });
 
-    $('routeMessage').textContent =
+    const notices = sections.flatMap(section =>
 
-      'Road route preview calculated. Not validated for coach restrictions.';
+      section.notices || []
 
-  } catch (e) {
+    );
 
-    $('routeMessage').textContent = e.message;
+    const criticalNotices = notices.filter(notice =>
 
-    toast(e.message);
+      notice.severity === "critical"
+
+    );
+
+    if (criticalNotices.length) {
+
+      $("routeMessage").textContent =
+
+        "Route calculated, but HERE reports a critical vehicle restriction. Do not rely on this route until checked.";
+
+    } else {
+
+      $("routeMessage").textContent =
+
+        "HERE truck route calculated for your selected vehicle profile. Check all restrictions before travelling.";
+
+    }
+
+    setTimeout(() => map.invalidateSize(), 200);
+
+  } catch (error) {
+
+    $("routeMessage").textContent = error.message;
+
+    toast(error.message);
 
   } finally {
 
-    $('previewRoute').disabled = false;
+    button.disabled = false;
 
-    $('previewRoute').textContent = 'Show route on map';
+    button.textContent = "Show route on map";
 
   }
 
 });
-$('locateMe').addEventListener('click',()=>{
- if(!navigator.geolocation){toast('Location is not supported by this browser.');return}
- $('routeMessage').textContent='Requesting your location…';
- navigator.geolocation.getCurrentPosition(pos=>{
-  const ll=[pos.coords.latitude,pos.coords.longitude];map.setView(ll,14);
-  L.marker(ll).addTo(map).bindPopup('Your current location').openPopup();
-  $('origin').value='My current location';$('routeMessage').textContent='Your location is shown on the map. Location access is only used when you request it.';
- },()=>toast('Could not access location. Check iPhone location permissions.'),{enableHighAccuracy:true,timeout:12000});
+
+$("locateMe").addEventListener("click", () => {
+
+  if (!navigator.geolocation) {
+
+    toast("Location is not supported by this browser.");
+
+    return;
+
+  }
+
+  $("routeMessage").textContent =
+
+    "Requesting your location…";
+
+  navigator.geolocation.getCurrentPosition(
+
+    position => {
+
+      const location = [
+
+        position.coords.latitude,
+
+        position.coords.longitude
+
+      ];
+
+      map.setView(location, 14);
+
+      L.marker(location)
+
+        .addTo(map)
+
+        .bindPopup("Your current location")
+
+        .openPopup();
+
+      $("origin").value = "My current location";
+
+      $("routeMessage").textContent =
+
+        "Your location is shown on the map.";
+
+    },
+
+    () => {
+
+      toast(
+
+        "Could not access location. Check iPhone location permissions."
+
+      );
+
+    },
+
+    {
+
+      enableHighAccuracy: true,
+
+      timeout: 12000
+
+    }
+
+  );
+
 });
-$('installHelp').addEventListener('click',()=>alert('In Safari on your iPhone: tap the Share button, scroll down, choose “Add to Home Screen”, then tap Add. The app must first be hosted on a secure HTTPS website.'));
+
+$("installHelp").addEventListener("click", () => {
+
+  alert(
+
+    "In Safari on your iPhone: tap the Share button, scroll down, choose Add to Home Screen, then tap Add."
+
+  );
+
+});
+
 let deferredPrompt;
-window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredPrompt=e;$('installBtn').hidden=false});
-$('installBtn').addEventListener('click',async()=>{if(!deferredPrompt)return;deferredPrompt.prompt();await deferredPrompt.userChoice;deferredPrompt=null;$('installBtn').hidden=true});
-if('serviceWorker' in navigator && location.protocol.startsWith('http'))window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
+
+window.addEventListener("beforeinstallprompt", event => {
+
+  event.preventDefault();
+
+  deferredPrompt = event;
+
+  $("installBtn").hidden = false;
+
+});
+
+$("installBtn").addEventListener("click", async () => {
+
+  if (!deferredPrompt) return;
+
+  deferredPrompt.prompt();
+
+  await deferredPrompt.userChoice;
+
+  deferredPrompt = null;
+
+  $("installBtn").hidden = true;
+
+});
+
+if (
+
+  "serviceWorker" in navigator &&
+
+  location.protocol.startsWith("http")
+
+) {
+
+  window.addEventListener("load", () => {
+
+    navigator.serviceWorker
+
+      .register("./sw.js")
+
+      .catch(() => {});
+
+  });
+
+}
