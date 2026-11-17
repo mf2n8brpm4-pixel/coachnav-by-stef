@@ -322,7 +322,7 @@ $("previewRoute").addEventListener("click", async event => {
 
     !HERE_API_KEY ||
 
-    HERE_API_KEY === "PASTE YOUR EXISTING HERE KEY HERE"
+    HERE_API_KEY === "Fav5zkRAQl0p63_T0GEfk79RfI5P9Wag6fmeI-fnHsE"
 
   ) {
 
