@@ -30,7 +30,7 @@ const profiles = {
 
 let currentProfile = "touring";
 
-// Paste your EXISTING HERE API key between these quotation marks.
+// Your existing HERE API key
 
 const HERE_API_KEY = "Fav5zkRAQl0p63_T0GEfk79RfI5P9Wag6fmeI-fnHsE";
 
@@ -66,6 +66,8 @@ L.control.zoom({
 
 let markers = [];
 
+let currentLocation = null;
+
 function toast(message) {
 
   const el = $("toast");
@@ -85,6 +87,8 @@ function toast(message) {
 }
 
 function setProfile(name) {
+
+  if (!profiles[name]) return;
 
   currentProfile = name;
 
@@ -272,7 +276,7 @@ function decodeHerePolyline(encoded) {
 
   if (thirdDim) {
 
-    encoded.charCodeAt(index++) - 63;
+    index++;
 
   }
 
@@ -302,6 +306,8 @@ function decodeHerePolyline(encoded) {
 
 }
 
+// Calculate a vehicle-aware route using HERE.
+
 $("previewRoute").addEventListener("click", async event => {
 
   event.preventDefault();
@@ -318,15 +324,9 @@ $("previewRoute").addEventListener("click", async event => {
 
   }
 
-  if (
+  if (!HERE_API_KEY) {
 
-    !HERE_API_KEY ||
-
-    HERE_API_KEY === "Fav5zkRAQl0p63_T0GEfk79RfI5P9Wag6fmeI-fnHsE"
-
-  ) {
-
-    toast("Add your existing HERE API key in app.js.");
+    toast("HERE API key is missing.");
 
     return;
 
@@ -342,7 +342,11 @@ $("previewRoute").addEventListener("click", async event => {
 
   try {
 
-    const a = await geocode(from);
+    const a = from === "My current location" && currentLocation
+
+      ? currentLocation
+
+      : await geocode(from);
 
     const b = await geocode(to);
 
@@ -502,17 +506,21 @@ $("previewRoute").addEventListener("click", async event => {
 
       $("routeMessage").textContent =
 
-        "Route calculated, but HERE reports a critical vehicle restriction. Do not rely on this route until checked.";
+        "Route calculated, but HERE reports a critical vehicle restriction. Check before travelling.";
 
     } else {
 
       $("routeMessage").textContent =
 
-        "HERE truck route calculated for your selected vehicle profile. Check all restrictions before travelling.";
+        "HERE vehicle route calculated. Check all restrictions before travelling.";
 
     }
 
-    setTimeout(() => map.invalidateSize(), 200);
+    setTimeout(() => {
+
+      map.invalidateSize();
+
+    }, 200);
 
   } catch (error) {
 
@@ -529,6 +537,8 @@ $("previewRoute").addEventListener("click", async event => {
   }
 
 });
+
+// Find and display your current location.
 
 $("locateMe").addEventListener("click", () => {
 
@@ -548,23 +558,37 @@ $("locateMe").addEventListener("click", () => {
 
     position => {
 
-      const location = [
+      const location = {
 
-        position.coords.latitude,
+        lat: position.coords.latitude,
 
-        position.coords.longitude
+        lon: position.coords.longitude,
+
+        name: "Your current location"
+
+      };
+
+      currentLocation = location;
+
+      const coordinates = [
+
+        location.lat,
+
+        location.lon
 
       ];
 
-      map.setView(location, 14);
+      map.setView(coordinates, 14);
 
-      L.marker(location)
+      const marker = L.marker(coordinates)
 
         .addTo(map)
 
         .bindPopup("Your current location")
 
         .openPopup();
+
+      markers.push(marker);
 
       $("origin").value = "My current location";
 
@@ -596,6 +620,8 @@ $("locateMe").addEventListener("click", () => {
 
 });
 
+// Installation help.
+
 $("installHelp").addEventListener("click", () => {
 
   alert(
@@ -605,6 +631,8 @@ $("installHelp").addEventListener("click", () => {
   );
 
 });
+
+// App installation.
 
 let deferredPrompt;
 
@@ -632,6 +660,8 @@ $("installBtn").addEventListener("click", async () => {
 
 });
 
+// Register service worker.
+
 if (
 
   "serviceWorker" in navigator &&
@@ -649,3 +679,5 @@ if (
       .catch(() => {});
 
   });
+
+}
