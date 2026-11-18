@@ -502,8 +502,63 @@ if ($("previewRoute")) {
         section.notices || []
       );
 
+      
+
+      // ======================================
+
+      // DETAILED VEHICLE RESTRICTION REPORT
+
+      // ======================================
+
+      const notices = sections.flatMap(section =>
+
+        section.notices || []
+
+      );
+
       const criticalNotices = notices.filter(notice =>
+
         notice.severity === "critical"
+
+      );
+
+      if ($("routeMessage")) {
+
+        if (criticalNotices.length) {
+
+          const reasons = criticalNotices.map(notice => {
+
+            const details = notice.details || [];
+
+            const causes = details
+
+              .map(detail => detail.cause || detail.title)
+
+              .filter(Boolean);
+
+            return causes.length
+
+              ? causes.join("; ")
+
+              : notice.title || notice.code || "Unknown restriction";
+
+          });
+
+          $("routeMessage").textContent =
+
+            "WARNING: Vehicle restriction detected. " +
+
+            [...new Set(reasons)].join(" | ");
+
+        } else {
+
+          $("routeMessage").textContent =
+
+            "Route calculated. No critical HERE restrictions reported. Check road signs before travelling.";
+
+        }
+
+      }
       );
 
       // DISPLAY ROUTE INFORMATION
