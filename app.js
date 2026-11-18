@@ -114,7 +114,7 @@ function toast(message) {
 
 // ==========================================
 
-// MAP MARKERS AND ROUTE
+// MAP CLEANUP
 
 // ==========================================
 
@@ -128,7 +128,7 @@ function clearMapMarkers() {
 
 // ==========================================
 
-// VEHICLE PROFILE SELECTION
+// VEHICLE PROFILES
 
 // ==========================================
 
@@ -234,7 +234,7 @@ if ($("saveVehicle")) {
 
 // ==========================================
 
-// LOAD SAVED VEHICLE PROFILES
+// LOAD SAVED VEHICLES
 
 // ==========================================
 
@@ -254,7 +254,7 @@ try {
 
 } catch (error) {
 
-  console.warn("Could not load saved vehicle profiles.", error);
+  console.warn("Could not load vehicle profiles.", error);
 
 }
 
@@ -352,7 +352,7 @@ function decodeHerePolyline(encoded) {
 
       if (shift > 50) {
 
-        throw new Error("HERE polyline value is too large.");
+        throw new Error("HERE polyline value too large.");
 
       }
 
@@ -383,8 +383,6 @@ function decodeHerePolyline(encoded) {
     throw new Error("Unsupported HERE polyline version.");
 
   }
-
-  // Precision and third dimension share one header.
 
   const header = decodeUnsignedVarint();
 
@@ -478,7 +476,7 @@ function getRestrictionReport(routeData, sections) {
 
       message:
 
-        "Route calculated. No critical HERE restrictions reported. Check road signs before travelling."
+        "No critical HERE restrictions reported. Check road signs before travelling."
 
     };
 
@@ -510,15 +508,9 @@ function getRestrictionReport(routeData, sections) {
 
       }
 
-      if (detail.maxWeight != null) {
-
-        limits.push("Maximum weight: " + detail.maxWeight + " kg");
-
-      }
-
       if (detail.maxGrossWeight != null) {
 
-        limits.push("Maximum gross weight: " + detail.maxGrossWeight + " kg");
+        limits.push("Maximum weight: " + detail.maxGrossWeight + " kg");
 
       }
 
@@ -562,7 +554,7 @@ function getRestrictionReport(routeData, sections) {
 
 // ==========================================
 
-// CALCULATE COACH ROUTE USING HERE
+// CALCULATE COACH ROUTE
 
 // ==========================================
 
@@ -586,7 +578,7 @@ if ($("previewRoute")) {
 
     if (!HERE_API_KEY) {
 
-      toast("Add your HERE API key in app.js.");
+      toast("Check your HERE API key.");
 
       return;
 
@@ -640,9 +632,7 @@ if ($("previewRoute")) {
 
       params.set("spans", "notices");
 
-      // VEHICLE DIMENSIONS
-
-      // HERE USES CENTIMETRES FOR THESE VALUES.
+      // VEHICLE DIMENSIONS IN CM
 
       params.set(
 
@@ -668,7 +658,7 @@ if ($("previewRoute")) {
 
       );
 
-      // GROSS WEIGHT IN KILOGRAMS
+      // WEIGHT IN KG
 
       params.set(
 
@@ -702,11 +692,9 @@ if ($("previewRoute")) {
 
       }
 
-      // CHECK API ERRORS
-
       if (!response.ok) {
 
-        const reason =
+        throw new Error(
 
           data.cause ||
 
@@ -714,13 +702,9 @@ if ($("previewRoute")) {
 
           data.message ||
 
-          data.status ||
+          "HERE routing request failed."
 
-          data.error ||
-
-          "HERE routing request failed.";
-
-        throw new Error(String(reason));
+        );
 
       }
 
@@ -730,7 +714,7 @@ if ($("previewRoute")) {
 
       }
 
-      // EXTRACT ROUTE
+      // ROUTE SECTIONS
 
       const routeData = data.routes[0];
 
@@ -742,9 +726,11 @@ if ($("previewRoute")) {
 
         if (section.polyline) {
 
-          const decoded = decodeHerePolyline(section.polyline);
+          route.push(
 
-          route.push(...decoded);
+            ...decodeHerePolyline(section.polyline)
+
+          );
 
         }
 
@@ -760,7 +746,7 @@ if ($("previewRoute")) {
 
       clearMapMarkers();
 
-      // DRAW ROAD ROUTE
+      // DRAW ROUTE
 
       const roadLine = L.polyline(route, {
 
@@ -776,37 +762,29 @@ if ($("previewRoute")) {
 
       // START MARKER
 
-      const startMarker = L.marker([
+      markers.push(
 
-        a.lat,
+        L.marker([a.lat, a.lon])
 
-        a.lon
+          .addTo(map)
 
-      ])
+          .bindPopup("START: " + a.name)
 
-        .addTo(map)
-
-        .bindPopup("START: " + a.name);
-
-      markers.push(startMarker);
+      );
 
       // DESTINATION MARKER
 
-      const destinationMarker = L.marker([
+      markers.push(
 
-        b.lat,
+        L.marker([b.lat, b.lon])
 
-        b.lon
+          .addTo(map)
 
-      ])
+          .bindPopup("DESTINATION: " + b.name)
 
-        .addTo(map)
+      );
 
-        .bindPopup("DESTINATION: " + b.name);
-
-      markers.push(destinationMarker);
-
-      // ZOOM TO ROUTE
+      // FIT MAP TO ROUTE
 
       map.fitBounds(roadLine.getBounds(), {
 
@@ -814,7 +792,7 @@ if ($("previewRoute")) {
 
       });
 
-      // ROUTE SUMMARY
+      // ROUTE DISTANCE AND TIME
 
       const summary = sections.reduce(
 
@@ -836,7 +814,7 @@ if ($("previewRoute")) {
 
       );
 
-      // VEHICLE RESTRICTION REPORT
+      // CHECK VEHICLE RESTRICTIONS
 
       const report = getRestrictionReport(
 
@@ -846,33 +824,33 @@ if ($("previewRoute")) {
 
       );
 
+      let message = report.message;
+
+      if (summary.length > 0) {
+
+        message +=
+
+          " Distance: " +
+
+          (summary.length / 1000).toFixed(1) +
+
+          " km.";
+
+      }
+
+      if (summary.duration > 0) {
+
+        message +=
+
+          " Estimated driving time: " +
+
+          Math.round(summary.duration / 60) +
+
+          " minutes.";
+
+      }
+
       if ($("routeMessage")) {
-
-        let message = report.message;
-
-        if (summary.length > 0) {
-
-          message +=
-
-            " Distance: " +
-
-            (summary.length / 1000).toFixed(1) +
-
-            " km.";
-
-        }
-
-        if (summary.duration > 0) {
-
-          message +=
-
-            " Estimated driving time: " +
-
-            Math.round(summary.duration / 60) +
-
-            " minutes.";
-
-        }
 
         $("routeMessage").textContent = message;
 
@@ -970,15 +948,17 @@ if ($("locateMe")) {
 
         clearMapMarkers();
 
-        const marker = L.marker(coordinates)
+        markers.push(
 
-          .addTo(map)
+          L.marker(coordinates)
 
-          .bindPopup("Your current location")
+            .addTo(map)
 
-          .openPopup();
+            .bindPopup("Your current location")
 
-        markers.push(marker);
+            .openPopup()
+
+        );
 
         $("origin").value = "My current location";
 
