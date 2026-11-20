@@ -1,5 +1,3 @@
-
-
 // ==========================================
 
 // COACHNAV BY STEF
@@ -52,13 +50,77 @@ let currentLocation = null;
 
 let markers = [];
 
+let currentRoute = null;
+
 const $ = id => document.getElementById(id);
+
+// ==========================================
+
+// LOAD SAVED VEHICLES
+
+// ==========================================
+
+try {
+
+  const saved = JSON.parse(
+
+    localStorage.getItem("coachnav_profiles_v2") || "null"
+
+  );
+
+  if (saved) {
+
+    ["touring", "double"].forEach(name => {
+
+      if (saved[name]) {
+
+        profiles[name] = {
+
+          ...profiles[name],
+
+          ...saved[name]
+
+        };
+
+      }
+
+    });
+
+  }
+
+  const selected = localStorage.getItem(
+
+    "coachnav_selected_profile_v1"
+
+  );
+
+  if (profiles[selected]) {
+
+    currentProfile = selected;
+
+  }
+
+} catch (error) {
+
+  console.warn("Could not load vehicle profiles.", error);
+
+}
 
 // ==========================================
 
 // MAP SETUP
 
 // ==========================================
+
+if (typeof L === "undefined" || !$("map")) {
+
+  throw new Error(
+
+    "CoachNav map could not start. Check that Leaflet is loaded and the map element exists."
+
+  );
+
+}
 
 const map = L.map("map", {
 
@@ -98,7 +160,13 @@ function toast(message) {
 
   const el = $("toast");
 
-  if (!el) return;
+  if (!el) {
+
+    console.log(message);
+
+    return;
+
+  }
 
   el.textContent = message;
 
@@ -120,15 +188,63 @@ function toast(message) {
 
 function clearMapMarkers() {
 
-  markers.forEach(marker => map.removeLayer(marker));
+  markers.forEach(marker => {
+
+    if (map.hasLayer(marker)) {
+
+      map.removeLayer(marker);
+
+    }
+
+  });
 
   markers = [];
+
+  currentRoute = null;
 
 }
 
 // ==========================================
 
-// VEHICLE PROFILES
+// SAVE PROFILES
+
+// ==========================================
+
+function saveProfiles() {
+
+  try {
+
+    localStorage.setItem(
+
+      "coachnav_profiles_v2",
+
+      JSON.stringify(profiles)
+
+    );
+
+    localStorage.setItem(
+
+      "coachnav_selected_profile_v1",
+
+      currentProfile
+
+    );
+
+    return true;
+
+  } catch (error) {
+
+    console.warn("Could not save profiles.", error);
+
+    return false;
+
+  }
+
+}
+
+// ==========================================
+
+// VEHICLE PROFILE SELECTION
 
 // ==========================================
 
@@ -156,9 +272,29 @@ function setProfile(name) {
 
     const field = $(key);
 
-    if (field) field.value = profile[key];
+    if (field) {
+
+      field.value = profile[key];
+
+    }
 
   });
+
+  try {
+
+    localStorage.setItem(
+
+      "coachnav_selected_profile_v1",
+
+      name
+
+    );
+
+  } catch (error) {
+
+    console.warn("Could not save selected vehicle.");
+
+  }
 
 }
 
@@ -190,13 +326,23 @@ if ($("saveVehicle")) {
 
       const field = $(key);
 
-      profile[key] = field ? field.value : "";
+      const value = field ? field.value.trim() : "";
 
-      if (!profile[key] || Number(profile[key]) <= 0) {
+      if (
+
+        !value ||
+
+        !Number.isFinite(Number(value)) ||
+
+        Number(value) <= 0
+
+      ) {
 
         valid = false;
 
       }
+
+      profile[key] = value;
 
     });
 
@@ -210,23 +356,15 @@ if ($("saveVehicle")) {
 
     profiles[currentProfile] = profile;
 
-    try {
+    if (saveProfiles()) {
 
-      localStorage.setItem(
+      toast("Vehicle profile saved on this device.");
 
-        "coachnav_profiles_v2",
+    } else {
 
-        JSON.stringify(profiles)
-
-      );
-
-    } catch (error) {
-
-      console.warn("Could not save vehicle profile.", error);
+      toast("Could not save vehicle profile.");
 
     }
-
-    toast("Vehicle profile saved on this device.");
 
   });
 
@@ -234,31 +372,11 @@ if ($("saveVehicle")) {
 
 // ==========================================
 
-// LOAD SAVED VEHICLES
+// RESTORE SELECTED VEHICLE
 
 // ==========================================
 
-try {
-
-  const saved = JSON.parse(
-
-    localStorage.getItem("coachnav_profiles_v2") || "null"
-
-  );
-
-  if (saved) {
-
-    Object.assign(profiles, saved);
-
-  }
-
-} catch (error) {
-
-  console.warn("Could not load vehicle profiles.", error);
-
-}
-
-setProfile("touring");
+setProfile(currentProfile);
 
 // ==========================================
 
@@ -468,87 +586,177 @@ function getRestrictionReport(routeData, sections) {
 
   );
 
-  if (!critical.length) {
+  const informative = uniqueNotices.filter(
+
+    notice => notice.severity === "info"
+
+  );
+
+  if (critical.length) {
+
+    const reasons = critical.map(notice => {
+
+      const details = (notice.details || []).map(detail => {
+
+        const limits = [];
+
+        if (detail.maxHeight != null) {
+
+          limits.push(
+
+            "Maximum height: " + detail.maxHeight + " cm"
+
+          );
+
+        }
+
+        if (detail.maxWidth != null) {
+
+          limits.push(
+
+            "Maximum width: " + detail.maxWidth + " cm"
+
+          );
+
+        }
+
+        if (detail.maxLength != null) {
+
+          limits.push(
+
+            "Maximum length: " + detail.maxLength + " cm"
+
+          );
+
+        }
+
+        if (detail.maxGrossWeight != null) {
+
+          limits.push(
+
+            "Maximum gross weight: " +
+
+            detail.maxGrossWeight + " kg"
+
+          );
+
+        }
+
+        return [
+
+          detail.cause,
+
+          detail.title,
+
+          ...limits
+
+        ].filter(Boolean).join(" - ");
+
+      });
+
+      return [
+
+        notice.title,
+
+        notice.code,
+
+        ...details
+
+      ].filter(Boolean).join(": ");
+
+    });
 
     return {
 
-      critical: false,
+      critical: true,
+
+      verified: false,
 
       message:
 
-        "No critical HERE restrictions reported. Check road signs before travelling."
+        "WARNING: HERE reports critical vehicle restrictions. " +
+
+        [...new Set(reasons)].join(" | ")
 
     };
 
   }
 
-  const reasons = critical.map(notice => {
+  let message =
 
-    const details = notice.details || [];
+    "HERE returned no critical restriction notices. " +
 
-    const explanations = details.map(detail => {
+    "This does NOT guarantee that every bridge, road or vehicle restriction has been identified. " +
 
-      const limits = [];
+    "Always check official restrictions and roadside signs before travelling.";
 
-      if (detail.maxHeight != null) {
+  if (informative.length) {
 
-        limits.push("Maximum height: " + detail.maxHeight + " cm");
+    message +=
 
-      }
+      " Additional notices: " +
 
-      if (detail.maxWidth != null) {
+      informative.map(n => n.title || n.code).join("; ");
 
-        limits.push("Maximum width: " + detail.maxWidth + " cm");
-
-      }
-
-      if (detail.maxLength != null) {
-
-        limits.push("Maximum length: " + detail.maxLength + " cm");
-
-      }
-
-      if (detail.maxGrossWeight != null) {
-
-        limits.push("Maximum weight: " + detail.maxGrossWeight + " kg");
-
-      }
-
-      return [
-
-        detail.cause,
-
-        detail.title,
-
-        ...limits
-
-      ].filter(Boolean).join(" - ");
-
-    });
-
-    return [
-
-      notice.title,
-
-      notice.code,
-
-      ...explanations
-
-    ].filter(Boolean).join(": ");
-
-  });
+  }
 
   return {
 
-    critical: true,
+    critical: false,
 
-    message:
+    verified: false,
 
-      "WARNING: HERE reports a critical vehicle restriction. " +
-
-      [...new Set(reasons)].join(" | ")
+    message
 
   };
+
+}
+
+// ==========================================
+
+// GET CURRENT VEHICLE DIMENSIONS
+
+// ==========================================
+
+function getCurrentVehicle() {
+
+  const profile = {
+
+    height: $("height")?.value.trim(),
+
+    length: $("length")?.value.trim(),
+
+    width: $("width")?.value.trim(),
+
+    weight: $("weight")?.value.trim()
+
+  };
+
+  const valid = [
+
+    "height",
+
+    "length",
+
+    "width",
+
+    "weight"
+
+  ].every(key =>
+
+    Number.isFinite(Number(profile[key])) &&
+
+    Number(profile[key]) > 0
+
+  );
+
+  if (!valid) {
+
+    throw new Error("Please check your vehicle dimensions.");
+
+  }
+
+  return profile;
 
 }
 
@@ -564,9 +772,9 @@ if ($("previewRoute")) {
 
     event.preventDefault();
 
-    const from = $("origin").value.trim();
+    const from = $("origin")?.value.trim();
 
-    const to = $("destination").value.trim();
+    const to = $("destination")?.value.trim();
 
     if (!from || !to) {
 
@@ -614,7 +822,13 @@ if ($("previewRoute")) {
 
       const b = await geocode(to);
 
-      const profile = profiles[currentProfile];
+      // VEHICLE PROFILE
+
+      const profile = getCurrentVehicle();
+
+      profiles[currentProfile] = profile;
+
+      saveProfiles();
 
       // HERE ROUTING REQUEST
 
@@ -632,7 +846,7 @@ if ($("previewRoute")) {
 
       params.set("spans", "notices");
 
-      // VEHICLE DIMENSIONS IN CM
+      // VEHICLE DIMENSIONS IN CENTIMETRES
 
       params.set(
 
@@ -658,7 +872,7 @@ if ($("previewRoute")) {
 
       );
 
-      // WEIGHT IN KG
+      // GROSS WEIGHT IN KILOGRAMS
 
       params.set(
 
@@ -742,7 +956,7 @@ if ($("previewRoute")) {
 
       }
 
-      // REMOVE PREVIOUS ROUTE
+      // CLEAR OLD ROUTE
 
       clearMapMarkers();
 
@@ -759,6 +973,8 @@ if ($("previewRoute")) {
       }).addTo(map);
 
       markers.push(roadLine);
+
+      currentRoute = roadLine;
 
       // START MARKER
 
@@ -784,7 +1000,7 @@ if ($("previewRoute")) {
 
       );
 
-      // FIT MAP TO ROUTE
+      // FIT MAP
 
       map.fitBounds(roadLine.getBounds(), {
 
@@ -792,7 +1008,7 @@ if ($("previewRoute")) {
 
       });
 
-      // ROUTE DISTANCE AND TIME
+      // DISTANCE AND TIME
 
       const summary = sections.reduce(
 
@@ -810,11 +1026,17 @@ if ($("previewRoute")) {
 
         },
 
-        { length: 0, duration: 0 }
+        {
+
+          length: 0,
+
+          duration: 0
+
+        }
 
       );
 
-      // CHECK VEHICLE RESTRICTIONS
+      // RESTRICTION REPORT
 
       const report = getRestrictionReport(
 
@@ -825,6 +1047,26 @@ if ($("previewRoute")) {
       );
 
       let message = report.message;
+
+      message +=
+
+        " Vehicle: " +
+
+        (currentProfile === "double"
+
+          ? "Double-decker"
+
+          : "Touring coach") +
+
+        ". Height: " + profile.height +
+
+        "m. Width: " + profile.width +
+
+        "m. Length: " + profile.length +
+
+        "m. Gross weight: " + profile.weight +
+
+        " tonnes.";
 
       if (summary.length > 0) {
 
@@ -868,9 +1110,15 @@ if ($("previewRoute")) {
 
           ? "Route calculated. Check vehicle restrictions."
 
-          : "Coach route calculated successfully."
+          : "Coach route calculated. Check restrictions before travelling."
 
       );
+
+      console.log("CoachNav route:", data);
+
+      console.log("Vehicle profile:", profile);
+
+      console.log("Restriction report:", report);
 
     } catch (error) {
 
@@ -960,7 +1208,11 @@ if ($("locateMe")) {
 
         );
 
-        $("origin").value = "My current location";
+        if ($("origin")) {
+
+          $("origin").value = "My current location";
+
+        }
 
         if ($("routeMessage")) {
 
@@ -972,7 +1224,9 @@ if ($("locateMe")) {
 
       },
 
-      () => {
+      error => {
+
+        console.warn("Location error:", error);
 
         toast(
 
@@ -986,7 +1240,9 @@ if ($("locateMe")) {
 
         enableHighAccuracy: true,
 
-        timeout: 12000
+        timeout: 12000,
+
+        maximumAge: 0
 
       }
 
@@ -1008,7 +1264,15 @@ if ($("installHelp")) {
 
     alert(
 
-      "In Safari on your iPhone: tap the Share button, scroll down, choose Add to Home Screen, then tap Add."
+      "In Safari on your iPhone:\n\n" +
+
+      "1. Tap the Share button.\n" +
+
+      "2. Scroll down.\n" +
+
+      "3. Choose Add to Home Screen.\n" +
+
+      "4. Tap Add."
 
     );
 
@@ -1022,7 +1286,7 @@ if ($("installHelp")) {
 
 // ==========================================
 
-let deferredPrompt;
+let deferredPrompt = null;
 
 window.addEventListener("beforeinstallprompt", event => {
 
@@ -1042,7 +1306,13 @@ if ($("installBtn")) {
 
   $("installBtn").addEventListener("click", async () => {
 
-    if (!deferredPrompt) return;
+    if (!deferredPrompt) {
+
+      toast("Use Safari Share and Add to Home Screen.");
+
+      return;
+
+    }
 
     deferredPrompt.prompt();
 
@@ -1091,6 +1361,22 @@ if (
   });
 
 }
+
+// ==========================================
+
+// INITIALISE MAP SIZE
+
+// ==========================================
+
+window.addEventListener("load", () => {
+
+  setTimeout(() => {
+
+    map.invalidateSize();
+
+  }, 300);
+
+});
 
 // ==========================================
 
